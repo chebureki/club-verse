@@ -1,4 +1,5 @@
-pub mod decl;
+pub mod as2;
+pub mod as3;
 
 use anyhow::{bail, Error, Result};
 
@@ -88,8 +89,19 @@ pub fn serialize(xt: XTPacket) -> String {
         s.push_str(val);
         s.push('%');
     }
-    // loop creates the trailing %
+
+    // no args render result in an %%
+    if xt.data.is_empty() {
+        s.push('%');
+    }
+
     s
+}
+
+impl Into<String> for XTPacket {
+    fn into(self) -> String {
+        serialize(self)
+    }
 }
 
 #[cfg(test)]
@@ -122,6 +134,17 @@ mod xt_parse_tests {
         assert_eq!(serialize(xt), "%xt%s%u#sp%1%395%384%");
     }
 
+    // TODO: this behavior might be a houdini quirk ... not sure
+    #[test]
+    fn serialize_with_empty_args() {
+        let xt = XTPacket {
+            handler_id: None,
+            packet_id: "l".to_owned(),
+            internal_id: XT_DEFAULT_INT_ID,
+            data: vec![],
+        };
+        assert_eq!(serialize(xt), "%xt%l%-1%%")
+    }
 
     #[test]
     fn basic_serialize_server() {
