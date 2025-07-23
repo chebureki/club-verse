@@ -9,6 +9,11 @@ pub struct LineConnWriter(WriteHalf<TcpStream>);
 
 pub struct LineConnReader(ReadHalf<TcpStream>);
 
+pub enum ReadError {
+    ParseError(anyhow::Error),
+    EnvError(anyhow::Error),
+}
+
 pub async fn line_con(stream: TcpStream) -> (LineConnWriter, LineConnReader) {
     let (reader, writer) = tokio::io::split(stream);
     (LineConnWriter(writer), LineConnReader(reader))
@@ -34,19 +39,26 @@ impl LineConnWriter {
 
 // TODO: the signal, that the connection is done ... is rather implicit
 impl LineConnReader {
-    pub async fn read<T>(&mut self) -> Result<Option<T>>
+    pub async fn read<T>(&mut self) -> Result<Option<T>, ReadError>
     where
         T: TryFrom<String>,
         T::Error: Into<anyhow::Error>,
     {
-        self.read_string()
-            .await?
-            .map(|line| {
-                line.try_into()
-                    .map_err(Into::into)
-                    .context("failed to parse line")
-            })
-            .transpose()
+        let line = match self
+            .read_string()
+            .await
+            .context("failed to read line")
+            .map_err(|e| ReadError::EnvError(e))?
+        {
+            Some(line) => line,
+            None => return Ok(None),
+        };
+
+        let parsed_res: Result<T, T::Error> = line.try_into();
+        match parsed_res{
+            Ok(t) => Ok(Some(t)),
+            Err(e) => Err(ReadError::ParseError(e.into())),
+        }
     }
 
     async fn read_string(&mut self) -> Result<Option<String>> {

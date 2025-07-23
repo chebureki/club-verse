@@ -1,5 +1,5 @@
 pub mod client {
-    use crate::pkt::meta::client::*;
+    use crate::pkt::{self, meta::client::*};
     use std::num::ParseIntError;
 
     use thiserror::Error;
@@ -24,9 +24,13 @@ pub mod client {
         },
     }
 
-    impl TryFrom<&XTPacket> for Packet {
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct Packet(pub pkt::meta::client::Packet);
+
+
+    impl TryFrom<XTPacket> for Packet {
         type Error = PacketError;
-        fn try_from(value: &XTPacket) -> Result<Self, Self::Error> {
+        fn try_from(value: XTPacket) -> Result<Self, Self::Error> {
             let XTPacket {
                 handler_id,
                 packet_id,
@@ -41,14 +45,14 @@ pub mod client {
             };
 
             match (handler_id.as_str(), packet_id.as_str(), data.as_slice()) {
-                ("s", "u#sp", [x, y]) => Ok(Packet::PlayerSetPosition {
-                    x: x.parse()?,
-                    y: y.parse()?,
-                }),
-                ("s", "u#sp", _) => Err(PacketError::BadArgCount),
-
-                ("s", "u#h", []) => Ok(Packet::Heartbeat),
-                ("s", "u#h", _) => Err(PacketError::BadArgCount),
+                // ("s", "u#sp", [x, y]) => Ok(Packet::PlayerSetPosition {
+                //     x: x.parse()?,
+                //     y: y.parse()?,
+                // }),
+                // ("s", "u#sp", _) => Err(PacketError::BadArgCount),
+                //
+                // ("s", "u#h", []) => Ok(Packet::Heartbeat),
+                // ("s", "u#h", _) => Err(PacketError::BadArgCount),
 
                 _ => Err(PacketError::Unrecognized {
                     handler_id: handler_id.to_owned(),
@@ -57,6 +61,47 @@ pub mod client {
             }
         }
     }
+
+
+    // pub struct Packet(pub meta::client::Packet);
+
+
+    // pub fn deserialize(packet: XTPacket) -> Result<Packet>;
+
+
+    // impl TryFrom<&XTPacket> for Packet {
+    //     type Error = PacketError;
+    //     fn try_from(value: &XTPacket) -> Result<Self, Self::Error> {
+    //         let XTPacket {
+    //             handler_id,
+    //             packet_id,
+    //             internal_id: _,
+    //             data,
+    //         } = value;
+    //
+    //         // TODO: is it guranteed that this is a logic error at this point?
+    //         let handler_id = match handler_id {
+    //             Some(hi) => hi,
+    //             None => panic!("attempt to parse a server packet as a client packet"),
+    //         };
+    //
+    //         match (handler_id.as_str(), packet_id.as_str(), data.as_slice()) {
+    //             ("s", "u#sp", [x, y]) => Ok(Packet::PlayerSetPosition {
+    //                 x: x.parse()?,
+    //                 y: y.parse()?,
+    //             }),
+    //             ("s", "u#sp", _) => Err(PacketError::BadArgCount),
+    //
+    //             ("s", "u#h", []) => Ok(Packet::Heartbeat),
+    //             ("s", "u#h", _) => Err(PacketError::BadArgCount),
+    //
+    //             _ => Err(PacketError::Unrecognized {
+    //                 handler_id: handler_id.to_owned(),
+    //                 packet_id: packet_id.to_owned(),
+    //             }),
+    //         }
+    //     }
+    // }
 }
 
 pub mod server {
@@ -102,53 +147,53 @@ pub mod server {
     }
 }
 
-#[cfg(test)]
-mod as2_packet_tests {
-    use crate::pkt::xt::XTPacket;
-    use assert_matches::assert_matches;
-
-    use super::*;
-    use crate::pkt::meta;
-
-    #[test]
-    fn basic_client_parse() {
-        let xt = XTPacket {
-            handler_id: Some("s".to_owned()),
-            packet_id: "u#sp".to_owned(),
-            internal_id: 1,
-            data: vec!["395".to_owned(), "384".to_owned()],
-        };
-
-        let res: Result<meta::client::Packet, client::PacketError> = (&xt).try_into();
-        assert_matches!(
-            res,
-            Ok(meta::client::Packet::PlayerSetPosition { x: 395, y: 384 })
-        )
-    }
-
-    #[test]
-    fn basic_client_parse_error_handling_count() {
-        let xt = XTPacket {
-            handler_id: Some("s".to_owned()),
-            packet_id: "u#sp".to_owned(),
-            internal_id: 1,
-            data: vec!["395".to_owned()],
-        };
-
-        let res: Result<meta::client::Packet, client::PacketError> = (&xt).try_into();
-        assert_matches!(res, Err(client::PacketError::BadArgCount))
-    }
-
-    #[test]
-    fn basic_client_parse_error_handling_datatype() {
-        let xt = XTPacket {
-            handler_id: Some("s".to_owned()),
-            packet_id: "u#sp".to_owned(),
-            internal_id: 1,
-            data: vec!["foobar".to_owned(), "384".to_owned()],
-        };
-
-        let res: Result<meta::client::Packet, client::PacketError> = (&xt).try_into();
-        assert_matches!(res, Err(client::PacketError::BadDatatypeInt(_)))
-    }
-}
+// #[cfg(test)]
+// mod as2_packet_tests {
+//     use crate::pkt::xt::XTPacket;
+//     use assert_matches::assert_matches;
+//
+//     use super::*;
+//     use crate::pkt::meta;
+//
+//     #[test]
+//     fn basic_client_parse() {
+//         let xt = XTPacket {
+//             handler_id: Some("s".to_owned()),
+//             packet_id: "u#sp".to_owned(),
+//             internal_id: 1,
+//             data: vec!["395".to_owned(), "384".to_owned()],
+//         };
+//
+//         let res: Result<meta::client::Packet, client::PacketError> = xt.try_into();
+//         assert_matches!(
+//             res,
+//             Ok(meta::client::Packet::PlayerSetPosition { x: 395, y: 384 })
+//         )
+//     }
+//
+//     #[test]
+//     fn basic_client_parse_error_handling_count() {
+//         let xt = XTPacket {
+//             handler_id: Some("s".to_owned()),
+//             packet_id: "u#sp".to_owned(),
+//             internal_id: 1,
+//             data: vec!["395".to_owned()],
+//         };
+//
+//         let res: Result<meta::client::Packet, client::PacketError> = (&xt).try_into();
+//         assert_matches!(res, Err(client::PacketError::BadArgCount))
+//     }
+//
+//     #[test]
+//     fn basic_client_parse_error_handling_datatype() {
+//         let xt = XTPacket {
+//             handler_id: Some("s".to_owned()),
+//             packet_id: "u#sp".to_owned(),
+//             internal_id: 1,
+//             data: vec!["foobar".to_owned(), "384".to_owned()],
+//         };
+//
+//         let res: Result<meta::client::Packet, client::PacketError> = (&xt).try_into();
+//         assert_matches!(res, Err(client::PacketError::BadDatatypeInt(_)))
+//     }
+// }

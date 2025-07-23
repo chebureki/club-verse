@@ -20,9 +20,7 @@ pub mod client {
         let mut username = String::new();
         let mut password = String::new();
         let mut in_nick = false;
-        let mut in_pword = false;
-
-        loop {
+        let mut in_pword = false; loop {
             match reader.read_event_into(&mut buf)? {
                 Event::Start(e) => match e.name().as_ref() {
                     b"body" => {

@@ -104,6 +104,14 @@ impl Into<String> for XTPacket {
     }
 }
 
+impl TryFrom<String> for XTPacket {
+    type Error = anyhow::Error;
+
+    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        deserialize(value.as_str(), XTVariant::Client)
+    }
+}
+
 #[cfg(test)]
 mod xt_parse_tests {
     use assert_matches::assert_matches;

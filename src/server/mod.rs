@@ -1,91 +1,56 @@
-//mod conn;
-mod logic;
-pub mod data;
+pub mod state;
+mod system;
 
-use std::collections::HashMap;
+use std::net::{SocketAddr, ToSocketAddrs};
 
-use anyhow::{bail, Error, Result};
 use tokio::{
-    net::{TcpListener, TcpStream},
-    sync::{mpsc, oneshot},
+    sync::{broadcast, mpsc},
+    task::AbortHandle,
 };
 
-use crate::pkt::meta::{self, PlayerId};
-mod tests;
+use crate::{pkt::meta, server::system::System};
+use anyhow::{Context, Result};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum PacketIn {
-    Player(PlayerId, meta::client::Packet),
-    // Self/ Other/ Meta?
+pub enum Event {
+    PlayerConnected(meta::PlayerId),
+    PlayerDisconnected(meta::PlayerId),
+    PlayerPacketIn(meta::PlayerId, meta::client::Packet),
+    PlayerPacketOut(meta::PlayerId, meta::server::Packet),
+    Error,
+
+    DisconnectPlayer,
+
+    Heartbeat,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum SystemPacket{
-    PlayerJoined(player),
+pub enum Error {
+    PlayerError(meta::PlayerId, anyhow::Error),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct PacketOut {
-    player_id: meta::PlayerId,
-    packet: meta::server::Packet,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum PacketCast {
-    Player(meta::PlayerId),
-    Room(meta::RoomId),
-    //Server,
-}
-
-pub struct Server {
-    players: HashMap<meta::PlayerId, state::Player>,
-}
-
-pub enum Cmd {
-    NewConnection {
-        tx: TcpStream,
-        rx: TcpListener,
-    },
-    Healthcheck {
-        resp_to: oneshot::Sender<Result<()>>,
-    },
-}
-
-impl Server {
-    pub fn new() -> Self {
-        Self {
-            players: HashMap::with_capacity(128),
-        }
+pub async fn from_systems(systems: Vec<Box<dyn System>>) -> Result<()> {
+    let (event_tx, _) = broadcast::channel::<Event>(16);
+    for sys in &systems {
+        sys.instantiate(event_tx.clone())
+            .await
+            .context("failed to instantiate server system")?;
     }
-
-    fn cast(
-        &self,
-        packet: meta::server::Packet,
-        cast: PacketCast,
-        packet_out: &mut Vec<PacketOut>,
-    ) -> Result<(), Error> {
-        // TODO: we need a room membership lookup, otherwise we send shit in linear time
-        match cast {
-            PacketCast::Player(player_id) => packet_out.push(PacketOut { player_id, packet }),
-            _ => todo!(),
-        }
-        Ok(())
-    }
-
+    Ok(())
 }
 
-pub async fn cmd_loop(server: Server) -> mpsc::Sender<Cmd> {
-    let (tx, mut rx) = mpsc::channel(256);
+pub async fn bind<A>(address: A) -> Result<()>
+where
+    A: ToSocketAddrs,
+{
+    let address = address
+        .to_socket_addrs()?
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("No address found"))?;
+    let systems: Vec<Box<dyn system::System>> = vec![
+        Box::new(system::heartbeat::Heartbeat),
+        Box::new(system::socket::as2::Socket { address }),
+    ];
 
-    tokio::spawn(async move {
-        while let Some(cmd) = rx.recv().await {
-            match cmd {
-                Cmd::NewConnection { tx, rx } => todo!(),
-                Cmd::Healthcheck { resp_to } => todo!(),
-            }
-
-        }
-    });
-
-    tx
+    from_systems(systems).await?;
+    Ok(())
 }
