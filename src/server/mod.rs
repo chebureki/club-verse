@@ -8,8 +8,16 @@ use tokio::{
     task::AbortHandle,
 };
 
-use crate::{pkt::meta, server::system::System};
+use crate::{
+    pkt::meta,
+    server::system::{EventReceiver, EventSender, System},
+};
 use anyhow::{Context, Result};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ServerCmd {
+    Foo,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
@@ -28,17 +36,34 @@ pub enum Error {
     PlayerError(meta::PlayerId, anyhow::Error),
 }
 
-pub async fn from_systems(systems: Vec<Box<dyn System>>) -> Result<()> {
-    let (event_tx, _) = broadcast::channel::<Event>(16);
+pub async fn from_systems(systems: Vec<Box<dyn System>>) -> Result<mpsc::Sender<ServerCmd>> {
+    /* NOTE:
+     * bus_tx is the sole fully owned sender!
+     * When dropped all underlying systems are dropped aswell
+     */
+    let (bus_tx, _) = broadcast::channel::<Event>(16);
+    let event_tx = EventSender(bus_tx.downgrade());
+
     for sys in &systems {
-        sys.instantiate(event_tx.clone())
-            .await
-            .context("failed to instantiate server system")?;
+        sys.instantiate(event_tx.clone(), EventReceiver(bus_tx.subscribe()))
+            .await?;
     }
-    Ok(())
+
+    let (cmd_tx, mut cmd_rx) = mpsc::channel(8);
+    tokio::spawn(async move {
+        while let Some(cmd) = cmd_rx.recv().await {
+            match cmd {
+                ServerCmd::Foo => {
+                    log::warn!("bar");
+                }
+            }
+        }
+        drop(bus_tx)
+    });
+    Ok(cmd_tx)
 }
 
-pub async fn bind<A>(address: A) -> Result<()>
+pub async fn bind<A>(address: A) -> Result<mpsc::Sender<ServerCmd>>
 where
     A: ToSocketAddrs,
 {
@@ -51,6 +76,6 @@ where
         Box::new(system::socket::as2::Socket { address }),
     ];
 
-    from_systems(systems).await?;
-    Ok(())
+    let tx = from_systems(systems).await?;
+    Ok(tx)
 }

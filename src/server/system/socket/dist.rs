@@ -5,6 +5,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
     sync::{mpsc, RwLock},
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     conn::line,
@@ -30,6 +31,9 @@ pub enum Event {
 pub struct Distributed {
     connections: Arc<RwLock<HashMap<meta::PlayerId, line::LineConnWriter>>>,
     rx: mpsc::Receiver<(meta::PlayerId, Event)>,
+
+    // notify actual sockets to close their connection
+    cancel: CancellationToken,
 }
 
 impl Distributed {
@@ -39,15 +43,20 @@ impl Distributed {
             Arc::new(RwLock::new(HashMap::with_capacity(64)));
 
         let (tx, rx) = mpsc::channel::<(meta::PlayerId, Event)>(32);
-
+        let cancel = CancellationToken::new();
         tokio::spawn({
             let connections = connections.clone();
+            let cancel = cancel.clone();
             async move {
                 loop {
-                    let (addr, (writer, reader)) = match socket.accept().await {
-                        Err(e) => todo!("handle failure to accept tcp connections {e}"),
-                        Ok((stream, addr)) => (addr, line::line_con(stream).await),
+                    let (addr, (writer, reader)) = tokio::select! {
+                        _ = cancel.cancelled() => break,
+                        conn_res =  socket.accept() => match conn_res{
+                            Err(e) => todo!("handle failure to accept tcp connections {e}"),
+                            Ok((stream, addr)) => (addr, line::line_con(stream).await),
+                        }
                     };
+
                     let (player_id, writer, mut reader) = match authgate::gate(writer, reader).await
                     {
                         Ok((AuthResult::Unauthenticated, _, _)) => {
@@ -60,8 +69,7 @@ impl Distributed {
                         Err(e) => {
                             log::error!("FUCK: {:#}", e);
                             todo!("")
-
-                        }//todo!("handle auth failure: {e}"),
+                        } //todo!("handle auth failure: {e}"),
                     };
                     let mut connections = connections.write().await;
                     if let Some(_) = connections.insert(player_id, writer) {
@@ -71,12 +79,20 @@ impl Distributed {
 
                     tokio::spawn({
                         let tx = tx.clone();
+                        let cancel = cancel.clone();
                         async move {
                             if let Err(_) = tx.send((player_id, Event::Connected)).await {
                                 return;
                             };
                             loop {
-                                match reader.read::<XTPacket>().await {
+                                let xt_res = tokio::select! {
+                                    _ = cancel.cancelled() => {
+                                        break;
+                                    }
+                                    res = reader.read::<XTPacket>() => res
+                                };
+
+                                match xt_res {
                                     Ok(None) => {
                                         let _ = tx.send((player_id, Event::Disconnected)).await;
                                         break;
@@ -91,6 +107,8 @@ impl Distributed {
                                     Err(_) => todo!("failure in read xt"),
                                 };
                             }
+
+                            log::info!("connection for player {player_id} {addr} dropped");
                         }
                     });
                 }
@@ -100,11 +118,12 @@ impl Distributed {
         Self {
             rx,
             connections: connections.clone(),
+            cancel,
         }
     }
     // TODO: when the struct is dropped, is it guranteed that the socket is closed?
     pub async fn poll(&mut self) -> (meta::PlayerId, Event) {
-        match self.rx.recv().await{
+        match self.rx.recv().await {
             Some(t) => t,
             None => panic!("socket was closed for some reason"),
         }
@@ -119,5 +138,11 @@ impl Distributed {
             },
             None => anyhow::bail!("illegal player id"),
         }
+    }
+}
+
+impl Drop for Distributed {
+    fn drop(&mut self) {
+        self.cancel.cancel();
     }
 }
