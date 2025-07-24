@@ -19,7 +19,6 @@ async fn main() -> Result<()> {
     tokio::signal::ctrl_c().await?;
     log::info!("terminating ...");
     drop(server_tx);
-    tokio::time::sleep(Duration::from_secs(3)).await;
     Ok(())
     // tokio::time::sleep(Duration::from_secs(600)).await;
     // drop(tx);

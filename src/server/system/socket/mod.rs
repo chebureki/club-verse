@@ -6,7 +6,10 @@ pub mod as2 {
 
     use crate::{
         pkt,
-        server::system::{socket::dist, EventReceiver, EventSender},
+        server::{
+            state,
+            system::{socket::dist, EventReceiver, EventSender},
+        },
     };
 
     use anyhow::{Context, Result};
@@ -24,6 +27,7 @@ pub mod as2 {
     impl System for Socket {
         async fn instantiate(
             &self,
+            _server: state::ServerState,
             mut event_tx: EventSender,
             mut event_rx: EventReceiver,
         ) -> Result<()> {
@@ -39,7 +43,7 @@ pub mod as2 {
                     tokio::select! {
                         event = event_rx.poll() => match event{
                             None => break,
-                            Some(Event::PlayerPacketOut(player_id, meta)) => {
+                            Some(Event::PacketSent(player_id, meta)) => {
                                 let xt: pkt::xt::XTPacket = (pkt::xt::as2::server::Packet(meta)).into();
                                 dist.push(player_id, xt).await.unwrap();
 
@@ -50,13 +54,15 @@ pub mod as2 {
                           dist::Event::Connected => {
                               event_tx.push(Event::PlayerConnected(player_id)).await;
                           },
-                          dist::Event::Disconnected => todo!("player disconnected"),
+                          dist::Event::Disconnected => event_tx.push(Event::PlayerDisconnected(player_id)).await,
                           dist::Event::Packet(xt) => {
+                              let hack_clone = xt.clone();
                               let as2: pkt::xt::as2::client::Packet = match xt.try_into(){
-                                  Err(e) => todo!("bad as2 from client: {e}"),
+                                  Err(e) => todo!("bad as2 from client: {e} {:?}",hack_clone),
                                   Ok(as2) => as2,
                               };
-                              event_tx.push(Event::PlayerPacketIn(player_id, as2.0)).await;
+                              log::debug!("received from {player_id} {as2:?} :  {hack_clone:?}");
+                              event_tx.push(Event::PacketReceived(player_id, as2.0)).await;
                           },
                         }
                     }

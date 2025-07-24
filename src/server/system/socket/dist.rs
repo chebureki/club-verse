@@ -56,6 +56,7 @@ impl Distributed {
                             Ok((stream, addr)) => (addr, line::line_con(stream).await),
                         }
                     };
+                    log::debug!("accepted connection from {addr}");
 
                     let (player_id, writer, mut reader) = match authgate::gate(writer, reader).await
                     {
@@ -71,13 +72,14 @@ impl Distributed {
                             todo!("")
                         } //todo!("handle auth failure: {e}"),
                     };
-                    let mut connections = connections.write().await;
-                    if let Some(_) = connections.insert(player_id, writer) {
+                    let mut conn_map = connections.write().await;
+                    if let Some(_) = conn_map.insert(player_id, writer) {
                         todo!("player already connected to server! HANDLE!");
                     }
                     log::info!("player {player_id} connected with address {addr}");
 
                     tokio::spawn({
+                        let connections = connections.clone();
                         let tx = tx.clone();
                         let cancel = cancel.clone();
                         async move {
@@ -107,6 +109,8 @@ impl Distributed {
                                     Err(_) => todo!("failure in read xt"),
                                 };
                             }
+                            let _ = connections.write().await.remove(&player_id);
+
 
                             log::info!("connection for player {player_id} {addr} dropped");
                         }

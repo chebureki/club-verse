@@ -34,7 +34,9 @@ async fn login_loop(
     let mut reader = reader;
 
     let (username, _password) = loop {
-        match reader.read().await {
+        log::info!("waiting for input????");
+        let line = reader.read().await;
+        match line {
             // TODO: BAD: user error and server error are not differentiated
             Err(line::ReadError::EnvError(e)) => return Err(e),
             Err(line::ReadError::ParseError(e)) => {

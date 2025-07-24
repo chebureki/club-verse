@@ -1,14 +1,43 @@
 pub type PlayerId = usize;
 pub type RoomId = usize;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ModeratorStatus {
+    Mascot,
+    StealthModerator,
+    Moderator,
+    None, //lol
+}
 pub mod client {
+    use crate::pkt::meta::PlayerId;
+
     #[derive(Clone, Debug, PartialEq)]
     pub enum Packet {
-        PlayerSetPosition { x: usize, y: usize },
+        PlayerSetPosition {
+            x: usize,
+            y: usize,
+        },
         Heartbeat,
+        JoinServer {
+            penguin_id: PlayerId,
+            login_key: String,
+            language: String,
+        },
+        GetInventory,
+        GetBuddies,
+        GetIgnoreList,
+        StartMailEngine,
+        GetMail,
+        GetMyPuffles,
+        GetLastRevision,
+        GetEPFPoints,
+        GetFieldOPStatus,
     }
 }
 
 pub mod server {
+    use crate::pkt::meta::ModeratorStatus;
+
     #[derive(Clone, Debug, PartialEq)]
     pub enum Packet {
         PlayerSetPosition {
@@ -18,11 +47,23 @@ pub mod server {
         },
         Heartbeat,
         Error(Error),
-        LoginResponse{
+        Loaded,
+        LoginResponse {
             // hash: String,
             // // TODO: why does it have a pipe?
-            // buddies_online: String, 
-        }
+            // buddies_online: String,
+        },
+        ActiveFeatures {
+            // TODO
+        },
+        JoinedServer {
+            // TODO: fields should be more semantic and less codey
+            agent_status: bool,
+            moderator_status: ModeratorStatus,
+            // TODO: wtf is this?
+            book_modified: bool,
+        },
+        // await p.send_xt('js', int(p.agent_status), int(0),moderator_status, int(p.book_modified))
     }
 
     #[repr(u32)]

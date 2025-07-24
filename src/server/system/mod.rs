@@ -1,15 +1,21 @@
 pub mod heartbeat;
+pub mod server;
 pub mod socket;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use tokio::sync::broadcast::{self, error::RecvError};
 
-use crate::server::Event;
+use crate::server::{state, Event};
 
 #[async_trait]
 pub trait System {
-    async fn instantiate(&self, tx: EventSender, rx: EventReceiver) -> Result<()>;
+    async fn instantiate(
+        &self,
+        server: state::ServerState,
+        tx: EventSender,
+        rx: EventReceiver,
+    ) -> Result<()>;
 }
 
 #[derive(Clone)]

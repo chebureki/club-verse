@@ -23,12 +23,10 @@ pub enum ServerCmd {
 pub enum Event {
     PlayerConnected(meta::PlayerId),
     PlayerDisconnected(meta::PlayerId),
-    PlayerPacketIn(meta::PlayerId, meta::client::Packet),
-    PlayerPacketOut(meta::PlayerId, meta::server::Packet),
+    PacketSent(meta::PlayerId, meta::server::Packet),
+    PacketReceived(meta::PlayerId, meta::client::Packet),
     Error,
-
     DisconnectPlayer,
-
     Heartbeat,
 }
 
@@ -44,9 +42,15 @@ pub async fn from_systems(systems: Vec<Box<dyn System>>) -> Result<mpsc::Sender<
     let (bus_tx, _) = broadcast::channel::<Event>(16);
     let event_tx = EventSender(bus_tx.downgrade());
 
+    let server_state = state::ServerState::new();
+
     for sys in &systems {
-        sys.instantiate(event_tx.clone(), EventReceiver(bus_tx.subscribe()))
-            .await?;
+        sys.instantiate(
+            server_state.clone(),
+            event_tx.clone(),
+            EventReceiver(bus_tx.subscribe()),
+        )
+        .await?;
     }
 
     let (cmd_tx, mut cmd_rx) = mpsc::channel(8);
@@ -74,6 +78,7 @@ where
     let systems: Vec<Box<dyn system::System>> = vec![
         Box::new(system::heartbeat::Heartbeat),
         Box::new(system::socket::as2::Socket { address }),
+        Box::new(system::server::Server),
     ];
 
     let tx = from_systems(systems).await?;
