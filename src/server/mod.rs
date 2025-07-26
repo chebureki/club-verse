@@ -25,6 +25,9 @@ pub enum Event {
     PlayerDisconnected(meta::PlayerId),
     PacketSent(meta::PlayerId, meta::server::Packet),
     PacketReceived(meta::PlayerId, meta::client::Packet),
+    // TODO: this is a COMMAND not an EVENT
+    PlayerTransferRoomRequest(meta::PlayerId, meta::RoomId),
+    PlayerJoinedRoom(meta::PlayerId, meta::RoomId),
     Error,
     DisconnectPlayer,
     Heartbeat,

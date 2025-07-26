@@ -1,5 +1,8 @@
 pub mod client {
-    use crate::pkt::{self, meta};
+    use crate::{
+        datamodel::{self, IntoPlayerGistString},
+        pkt::{self, meta},
+    };
     use std::num::ParseIntError;
 
     use anyhow::Context;
@@ -47,13 +50,11 @@ pub mod client {
             let data = data.as_slice();
             let meta: meta::client::Packet = (match (handler_id.as_str(), packet_id.as_str()) {
                 ("s", "j#js") => match data {
-                    [penguin_id, login_key, language] => {
-                        Ok(meta::client::Packet::JoinServer {
-                            penguin_id: penguin_id.parse()?,
-                            login_key: login_key.to_owned(),
-                            language: language.to_owned(),
-                        })
-                    }
+                    [penguin_id, login_key, language] => Ok(meta::client::Packet::JoinServer {
+                        penguin_id: penguin_id.parse()?,
+                        login_key: login_key.to_owned(),
+                        language: language.to_owned(),
+                    }),
                     _ => Err(PacketError::BadArgCount),
                 },
                 ("s", "i#gi") => match data {
@@ -93,6 +94,25 @@ pub mod client {
                     [] => Ok(meta::client::Packet::GetEPFPoints),
                     _ => Err(PacketError::BadArgCount),
                 },
+                ("s", "f#epfga") => match data {
+                    [] => Ok(meta::client::Packet::GetEPFAgentStatus),
+                    _ => Err(PacketError::BadArgCount),
+                },
+                ("s", "i#qpa") => match data {
+                    [player_id] => Ok(meta::client::Packet::QueryPlayerAwards {
+                        player_id: player_id.parse()?,
+                    }),
+                    _ => Err(PacketError::BadArgCount),
+                },
+                ("z", "gw") => match data {
+                    _ => Ok(meta::client::Packet::GetWaddlePopulation {}),
+                },
+                ("s", "u#gp") => match data {
+                    [player_id] => Ok(meta::client::Packet::GetPlayer {
+                        player: player_id.parse()?,
+                    }),
+                    _ => Err(PacketError::BadArgCount),
+                },
                 _ => Err(PacketError::Unrecognized {
                     handler_id: handler_id.to_owned(),
                     packet_id: packet_id.to_owned(),
@@ -104,10 +124,13 @@ pub mod client {
 }
 
 pub mod server {
-    use crate::pkt::{
-        self,
-        meta::ModeratorStatus,
-        xt::{XTPacket, XT_DEFAULT_INT_ID},
+    use crate::{
+        datamodel::{self, IntoPlayerGistString},
+        pkt::{
+            self,
+            meta::ModeratorStatus,
+            xt::{XTPacket, XT_DEFAULT_INT_ID},
+        },
     };
 
     // // TODO: move somewhere else
@@ -182,6 +205,163 @@ pub mod server {
                             "0".to_owned()
                         }, // await p.send_xt('js', int(p.agent_status), int(0),moderator_status, int(p.book_modified))
                     ],
+                },
+                pkt::meta::server::Packet::LoadPlayer {
+                    gist,
+                    coins,
+                    safe_chat,
+                    egg_timer_minutes,
+                    penguin_standard_time,
+                    age,
+                    minutes_played,
+                    membership_days_remain,
+                    server_time_offset,
+                    opened_playercard,
+                    map_category,
+                    new_player_status,
+                } => XTPacket {
+                    handler_id: None,
+                    packet_id: "lp".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![
+                        gist.into_gist_string(),
+                        coins.to_string(),
+                        if safe_chat {
+                            "1".to_owned()
+                        } else {
+                            "0".to_owned()
+                        },
+                        egg_timer_minutes.to_string(),
+                        penguin_standard_time.to_string(),
+                        age.to_string(),
+                        "0".to_owned(),
+                        minutes_played.to_string(),
+                        membership_days_remain.to_string().to_owned(),
+                        server_time_offset.to_string().to_owned(),
+                        if opened_playercard {
+                            "1".to_owned()
+                        } else {
+                            "0".to_owned()
+                        },
+                        match map_category {
+                            datamodel::MapCategory::Normal => "0".to_owned(),
+                        },
+                        match new_player_status {
+                            _ => "0".to_owned(),
+                        },
+                    ],
+                },
+                pkt::meta::server::Packet::GetInventory { items } => XTPacket {
+                    handler_id: None,
+                    packet_id: "gi".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: items.into_iter().map(|i| i.to_string()).collect(),
+                },
+                pkt::meta::server::Packet::GetBuddies {} => XTPacket {
+                    handler_id: None,
+                    packet_id: "gb".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![],
+                },
+                pkt::meta::server::Packet::GetIgnoreList {} => XTPacket {
+                    handler_id: None,
+                    packet_id: "gn".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![],
+                },
+                pkt::meta::server::Packet::GetPlayerStamps { player_id } => XTPacket {
+                    handler_id: None,
+                    packet_id: "gps".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![player_id.to_string(), "93|96|189".to_owned()],
+                },
+
+                pkt::meta::server::Packet::QueryPlayerAwards { player_id } => XTPacket {
+                    handler_id: None,
+                    packet_id: "qpa".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![player_id.to_string(), "8009".to_owned()],
+                },
+
+                pkt::meta::server::Packet::GetMail {} => XTPacket {
+                    handler_id: None,
+                    packet_id: "mg".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![
+                        "sys|0|112||1752891915|2|1".to_owned(),
+                        "sys|0|125||1752251683|1|1".to_owned(),
+                    ],
+                },
+                pkt::meta::server::Packet::GetLastRevision(revision) => XTPacket {
+                    handler_id: None,
+                    packet_id: "glr".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![revision],
+                },
+                pkt::meta::server::Packet::StartMailEngine {
+                    unread_mail_count,
+                    mail_count,
+                } => XTPacket {
+                    handler_id: None,
+                    packet_id: "mst".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![unread_mail_count.to_string(), mail_count.to_string()],
+                },
+
+                pkt::meta::server::Packet::GetEPFPoints {
+                    career_medals,
+                    agent_medals,
+                } => XTPacket {
+                    handler_id: None,
+                    packet_id: "epfgr".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![career_medals.to_string(), agent_medals.to_string()],
+                },
+
+                pkt::meta::server::Packet::GetFieldOPStatus {} => XTPacket {
+                    handler_id: None,
+                    packet_id: "epfgf".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec!["0".to_owned()],
+                },
+
+                pkt::meta::server::Packet::GetEPFAgentStatus {} => XTPacket {
+                    handler_id: None,
+                    packet_id: "epfga".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec!["1".to_owned()],
+                },
+
+                pkt::meta::server::Packet::JoinRoom { room_id, players } => XTPacket {
+                    handler_id: None,
+                    packet_id: "jr".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: {
+                        let mut vec: Vec<String> = Vec::new();
+                        vec.push(room_id.to_string());
+                        for p in players {
+                            vec.push(p.into_gist_string());
+                        }
+                        vec
+                    },
+                },
+                pkt::meta::server::Packet::AddedPlayer { player } => XTPacket {
+                    handler_id: None,
+                    packet_id: "ap".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![player.into_gist_string()],
+                },
+                pkt::meta::server::Packet::GetWaddlePopulation {} => XTPacket {
+                    handler_id: None,
+                    packet_id: "gw".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec!["100|,,,%101|,,%102|,%103|,".to_owned()],
+                },
+                pkt::meta::server::Packet::GetPlayer { player } => XTPacket {
+                    handler_id: None,
+                    packet_id: "gp".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![player.into_gist_string()],
                 },
             }
         }

@@ -9,7 +9,7 @@ pub enum ModeratorStatus {
     None, //lol
 }
 pub mod client {
-    use crate::pkt::meta::PlayerId;
+    use crate::{datamodel, pkt::meta::PlayerId};
 
     #[derive(Clone, Debug, PartialEq)]
     pub enum Packet {
@@ -32,11 +32,22 @@ pub mod client {
         GetLastRevision,
         GetEPFPoints,
         GetFieldOPStatus,
+        GetEPFAgentStatus,
+        QueryPlayerAwards {
+            player_id: PlayerId,
+        },
+        // TODO:
+        GetWaddlePopulation {},
+        GetPlayer {
+            player: datamodel::PlayerId,
+        },
     }
 }
 
 pub mod server {
-    use crate::pkt::meta::ModeratorStatus;
+    use std::usize;
+
+    use crate::{datamodel, pkt::meta::ModeratorStatus};
 
     #[derive(Clone, Debug, PartialEq)]
     pub enum Packet {
@@ -63,7 +74,66 @@ pub mod server {
             // TODO: wtf is this?
             book_modified: bool,
         },
-        // await p.send_xt('js', int(p.agent_status), int(0),moderator_status, int(p.book_modified))
+        LoadPlayer {
+            gist: datamodel::PlayerGist,
+            coins: usize,
+            safe_chat: bool,
+            egg_timer_minutes: usize,
+            // unix timestamp in millis, but rounded to the second
+            penguin_standard_time: usize,
+            // age in days since registration
+            age: usize,
+            minutes_played: usize,
+            membership_days_remain: usize,
+            // UTC-N , positive N. For America/Vancouver PDT, it's N=7
+            server_time_offset: usize,
+            opened_playercard: bool,
+            map_category: datamodel::MapCategory,
+            new_player_status: datamodel::NewPlayerStatus,
+        },
+        GetInventory {
+            items: Vec<datamodel::ItemId>,
+        },
+        // TODO:
+        GetBuddies {
+            // buddies: Vec<datamodel::Buddy>,
+        },
+        GetIgnoreList {},
+        //TODO
+        GetPlayerStamps {
+            player_id: datamodel::PlayerId,
+        },
+        //TODO
+        QueryPlayerAwards {
+            player_id: datamodel::PlayerId,
+        },
+        // TODO
+        GetMail {},
+        GetLastRevision(String),
+        StartMailEngine {
+            unread_mail_count: usize,
+            mail_count: usize,
+        },
+        GetEPFPoints {
+            career_medals: usize,
+            agent_medals: usize,
+        },
+        // TODO
+        GetFieldOPStatus {},
+        // TODO
+        GetEPFAgentStatus {},
+        JoinRoom {
+            room_id: datamodel::RoomId,
+            players: Vec<datamodel::PlayerGist>,
+        },
+        AddedPlayer {
+            player: datamodel::PlayerGist,
+        },
+        // TODO:
+        GetWaddlePopulation {},
+        GetPlayer {
+            player: datamodel::PlayerGist,
+        },
     }
 
     #[repr(u32)]

@@ -1,4 +1,5 @@
 pub mod conn;
+pub mod datamodel;
 pub mod persistence;
 pub mod pkt;
 pub mod server;
