@@ -7,7 +7,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use crate::{
-    datamodel::{self, IntoPlayerGistString},
+    datamodel::{self},
     pkt::meta,
     server::{
         state,
@@ -41,6 +41,7 @@ impl system::System for Server {
                         Event::PlayerDisconnected(player_id) => {
                             log::info!("player {player_id} disconnected");
                             server.write().await.pop_player(player_id).unwrap();
+                            // TODO: UPDATE CONNECTED PEOPLE
                         }
                         Event::PacketReceived(player_id, meta::client::Packet::GetIgnoreList) => {
                             event_tx
@@ -49,6 +50,36 @@ impl system::System for Server {
                                     meta::server::Packet::GetIgnoreList {},
                                 ))
                                 .await;
+                        }
+
+                        Event::PacketReceived(
+                            player_id,
+                            meta::client::Packet::SetPosition { x, y },
+                        ) => {
+                            let mut server = server.write().await;
+                            let player = server.get_mut_player(player_id);
+                            let room_id = player.room.unwrap();
+                            player.x = x;
+                            player.y = y;
+
+                            for e in
+                                server
+                                    .room_players(room_id)
+                                    .map(|state::Player { id, .. }| {
+                                        Event::PacketSent(
+                                            *id,
+                                            meta::server::Packet::SetPosition {
+                                                player_id: *id,
+                                                x,
+                                                y,
+                                            },
+                                        )
+                                    })
+                            {
+                                event_tx.push(e).await;
+                            }
+
+                            // TODO: update frame and toy!!
                         }
                         Event::PacketReceived(player_id, meta::client::Packet::GetInventory) => {
                             let server = server.read().await;
@@ -213,6 +244,24 @@ impl system::System for Server {
                                 event_tx.push(event).await;
                             }
                         }
+                        Event::PacketReceived(
+                            player_id,
+                            meta::client::Packet::SendMessage { message },
+                        ) => {
+                            let server = server.read().await;
+                            let room = server.get_player(player_id).room.unwrap();
+                            for e in server.room_players(room).map(|p| {
+                                Event::PacketSent(
+                                    p.id,
+                                    meta::server::Packet::SendMessage {
+                                        player_id,
+                                        message: message.clone(),
+                                    },
+                                )
+                            }) {
+                                event_tx.push(e).await;
+                            }
+                        }
 
                         Event::PacketReceived(
                             player_id,
@@ -227,6 +276,8 @@ impl system::System for Server {
                                 id: player_id,
                                 room: None,
                                 nickname: "kirill".to_owned(),
+                                x: 0,
+                                y: 0,
                             };
 
                             // TODO: what if player is already connected
@@ -285,6 +336,7 @@ impl system::System for Server {
                                 .push(Event::PlayerTransferRoomRequest(player_id, 230))
                                 .await;
                         }
+
                         // event_t
                         _ => {}
                     }

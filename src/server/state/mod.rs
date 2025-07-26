@@ -22,6 +22,8 @@ pub struct Player {
     pub id: meta::PlayerId,
     pub nickname: String,
     pub room: Option<RoomId>,
+    pub x: isize,
+    pub y: isize,
 }
 
 impl Into<datamodel::PlayerGist> for Player {
@@ -39,8 +41,8 @@ impl Into<datamodel::PlayerGist> for Player {
             feet: 0,
             flag: 0,
             photo: 0,
-            x: 0,
-            y: 0,
+            x: self.x,
+            y: self.y,
             frame: 1,
             member: true,
             membership_days: 9,

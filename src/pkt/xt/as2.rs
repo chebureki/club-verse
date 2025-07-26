@@ -113,6 +113,21 @@ pub mod client {
                     }),
                     _ => Err(PacketError::BadArgCount),
                 },
+                ("s", "u#sp") => match data {
+                    [x, y] => Ok(meta::client::Packet::SetPosition {
+                        x: x.parse()?,
+                        y: y.parse()?,
+                    }),
+                    _ => Err(PacketError::BadArgCount),
+                },
+                ("s", "m#sm") => match data {
+                    // cp sends the penguin id alongside ... not sure why
+                    // we discard it, proper error handling could be nice ... but eh
+                    [_player_id, message] => Ok(meta::client::Packet::SendMessage {
+                        message: message.to_owned(),
+                    }),
+                    _ => Err(PacketError::BadArgCount),
+                },
                 _ => Err(PacketError::Unrecognized {
                     handler_id: handler_id.to_owned(),
                     packet_id: packet_id.to_owned(),
@@ -147,7 +162,6 @@ pub mod server {
     impl Into<XTPacket> for Packet {
         fn into(self) -> XTPacket {
             match self.0 {
-                pkt::meta::server::Packet::PlayerSetPosition { player_id, x, y } => todo!(),
                 pkt::meta::server::Packet::Heartbeat => todo!(),
                 pkt::meta::server::Packet::Error(error) => {
                     let error: u32 = error.clone() as u32;
@@ -362,6 +376,19 @@ pub mod server {
                     packet_id: "gp".to_owned(),
                     internal_id: XT_DEFAULT_INT_ID,
                     data: vec![player.into_gist_string()],
+                },
+
+                pkt::meta::server::Packet::SetPosition { player_id, x, y } => XTPacket {
+                    handler_id: None,
+                    packet_id: "sp".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![player_id.to_string(), x.to_string(), y.to_string()],
+                },
+                pkt::meta::server::Packet::SendMessage { player_id, message } => XTPacket {
+                    handler_id: None,
+                    packet_id: "sm".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![player_id.to_string(), message],
                 },
             }
         }

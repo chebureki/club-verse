@@ -13,10 +13,6 @@ pub mod client {
 
     #[derive(Clone, Debug, PartialEq)]
     pub enum Packet {
-        PlayerSetPosition {
-            x: usize,
-            y: usize,
-        },
         Heartbeat,
         JoinServer {
             penguin_id: PlayerId,
@@ -41,6 +37,13 @@ pub mod client {
         GetPlayer {
             player: datamodel::PlayerId,
         },
+        SetPosition {
+            x: isize,
+            y: isize,
+        },
+        SendMessage{
+            message: String,
+        }
     }
 }
 
@@ -51,11 +54,6 @@ pub mod server {
 
     #[derive(Clone, Debug, PartialEq)]
     pub enum Packet {
-        PlayerSetPosition {
-            player_id: usize,
-            x: usize,
-            y: usize,
-        },
         Heartbeat,
         Error(Error),
         Loaded,
@@ -134,6 +132,15 @@ pub mod server {
         GetPlayer {
             player: datamodel::PlayerGist,
         },
+        SetPosition {
+            player_id: datamodel::PlayerId,
+            x: isize,
+            y: isize,
+        },
+        SendMessage{
+            player_id: datamodel::PlayerId,
+            message: String,
+        }
     }
 
     #[repr(u32)]
@@ -243,12 +250,5 @@ pub mod server {
         RedemptionCodeTooLong = 21703,
         GoldenCodeNotReady = 21704,
         RedemptionPuffleNameEmpty = 21705,
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct PlayerSetPosition {
-        pub player_id: usize,
-        pub x: usize,
-        pub y: usize,
     }
 }

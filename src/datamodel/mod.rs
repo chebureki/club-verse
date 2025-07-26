@@ -32,9 +32,8 @@ pub struct PlayerGist {
     pub feet: ItemId,
     pub flag: ItemId,
     pub photo: ItemId,
-    // TODO: the odd weird fields ...
-    pub x: i32,
-    pub y: i32,
+    pub x: isize,
+    pub y: isize,
     pub frame: u8,
     pub member: bool,
     pub membership_days: u32,
