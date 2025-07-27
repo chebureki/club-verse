@@ -120,6 +120,18 @@ pub mod client {
                     }),
                     _ => Err(PacketError::BadArgCount),
                 },
+                ("s", "j#jr") => match data {
+                    [room_id, x, y] => Ok(meta::client::Packet::JoinRoom {
+                        room: room_id.parse()?,
+                        x: x.parse()?,
+                        y: y.parse()?,
+                    }),
+                    _ => Err(PacketError::BadArgCount),
+                },
+                ("s", "u#h") => match data {
+                    [] => Ok(meta::client::Packet::Heartbeat),
+                    _ => Err(PacketError::BadArgCount),
+                },
                 ("s", "m#sm") => match data {
                     // cp sends the penguin id alongside ... not sure why
                     // we discard it, proper error handling could be nice ... but eh
@@ -162,7 +174,12 @@ pub mod server {
     impl Into<XTPacket> for Packet {
         fn into(self) -> XTPacket {
             match self.0 {
-                pkt::meta::server::Packet::Heartbeat => todo!(),
+                pkt::meta::server::Packet::Heartbeat => XTPacket {
+                    handler_id: None,
+                    packet_id: "h".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![],
+                },
                 pkt::meta::server::Packet::Error(error) => {
                     let error: u32 = error.clone() as u32;
                     XTPacket {
@@ -389,6 +406,12 @@ pub mod server {
                     packet_id: "sm".to_owned(),
                     internal_id: XT_DEFAULT_INT_ID,
                     data: vec![player_id.to_string(), message],
+                },
+                pkt::meta::server::Packet::RemovePenguin { player_id } => XTPacket {
+                    handler_id: None,
+                    packet_id: "rp".to_owned(),
+                    internal_id: XT_DEFAULT_INT_ID,
+                    data: vec![player_id.to_string()],
                 },
             }
         }

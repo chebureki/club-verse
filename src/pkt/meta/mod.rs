@@ -41,9 +41,14 @@ pub mod client {
             x: isize,
             y: isize,
         },
-        SendMessage{
+        SendMessage {
             message: String,
-        }
+        },
+        JoinRoom {
+            room: datamodel::RoomId,
+            x: isize,
+            y: isize,
+        },
     }
 }
 
@@ -137,10 +142,13 @@ pub mod server {
             x: isize,
             y: isize,
         },
-        SendMessage{
+        SendMessage {
             player_id: datamodel::PlayerId,
             message: String,
-        }
+        },
+        RemovePenguin {
+            player_id: datamodel::PlayerId,
+        },
     }
 
     #[repr(u32)]

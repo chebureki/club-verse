@@ -1,5 +1,6 @@
 pub mod state;
 mod system;
+pub(crate) mod resp;
 
 use std::net::{SocketAddr, ToSocketAddrs};
 
@@ -10,7 +11,7 @@ use tokio::{
 
 use crate::{
     pkt::meta,
-    server::system::{EventReceiver, EventSender, System},
+    server::{resp::Request, system::{EventReceiver, EventSender, System}},
 };
 use anyhow::{Context, Result};
 
@@ -26,7 +27,7 @@ pub enum Event {
     PacketSent(meta::PlayerId, meta::server::Packet),
     PacketReceived(meta::PlayerId, meta::client::Packet),
     // TODO: this is a COMMAND not an EVENT
-    PlayerTransferRoomRequest(meta::PlayerId, meta::RoomId),
+    PlayerTransferRoomRequest(meta::PlayerId, meta::RoomId, Request<()> ),
     PlayerJoinedRoom(meta::PlayerId, meta::RoomId),
     Error,
     DisconnectPlayer,
