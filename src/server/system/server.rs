@@ -69,7 +69,7 @@ impl system::System for Server {
                                         Event::PacketSent(
                                             *id,
                                             meta::server::Packet::SetPosition {
-                                                player_id: *id,
+                                                player_id,
                                                 x,
                                                 y,
                                             },
@@ -275,7 +275,7 @@ impl system::System for Server {
                             let player = state::Player {
                                 id: player_id,
                                 room: None,
-                                nickname: "kirill".to_owned(),
+                                nickname: "kirill_{player_id}".to_owned(),
                                 x: 0,
                                 y: 0,
                             };

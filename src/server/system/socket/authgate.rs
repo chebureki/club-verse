@@ -64,14 +64,18 @@ async fn login_loop(
         }
     };
 
-    if &username != "kirill" {
-        writer
-            .write(pkt::xt::as2::server::Packet(meta::server::Packet::Error(
-                meta::server::Error::NameNotFound,
-            )))
-            .await
-            .unwrap();
-        return Ok((None, writer, reader));
-    }
-    Ok((Some(102), writer, reader))
+    let user_id = match username.as_str() {
+        "kirill" => 102,
+        "peter" => 103,
+        _ => {
+            writer
+                .write(pkt::xt::as2::server::Packet(meta::server::Packet::Error(
+                    meta::server::Error::NameNotFound,
+                )))
+                .await
+                .unwrap();
+            return Ok((None, writer, reader));
+        }
+    };
+    Ok((Some(user_id), writer, reader))
 }
