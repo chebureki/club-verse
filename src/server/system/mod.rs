@@ -11,7 +11,7 @@ use crate::server::{state, Event};
 #[async_trait]
 pub trait System {
     async fn instantiate(
-        &self,
+        self: Box<Self>,
         server: state::ServerState,
         tx: EventSender,
         rx: EventReceiver,

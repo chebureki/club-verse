@@ -1,6 +1,7 @@
 pub mod state;
 mod system;
 pub(crate) mod resp;
+mod tests;
 
 use std::net::{SocketAddr, ToSocketAddrs};
 
@@ -48,7 +49,7 @@ pub async fn from_systems(systems: Vec<Box<dyn System>>) -> Result<mpsc::Sender<
 
     let server_state = state::ServerState::new();
 
-    for sys in &systems {
+    for sys in systems {
         sys.instantiate(
             server_state.clone(),
             event_tx.clone(),

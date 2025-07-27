@@ -56,7 +56,6 @@ async fn handle_player_disconnected(
         Err(e) => Err(ServerError::ServerFault(e)),
     }
 }
-
 #[inline]
 async fn handle_get_ignore_list(
     player_id: meta::PlayerId,
@@ -588,7 +587,7 @@ async fn handle_server_event(
 #[async_trait]
 impl system::System for Server {
     async fn instantiate(
-        &self,
+        self: Box<Self>,
         server: state::ServerState,
         event_tx: EventSender,
         mut event_rx: EventReceiver,

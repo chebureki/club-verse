@@ -26,7 +26,7 @@ pub mod as2 {
     #[async_trait]
     impl System for Socket {
         async fn instantiate(
-            &self,
+            self: Box<Self>,
             _server: state::ServerState,
             mut event_tx: EventSender,
             mut event_rx: EventReceiver,

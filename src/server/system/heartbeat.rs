@@ -11,12 +11,13 @@ pub struct Heartbeat;
 #[async_trait]
 impl server::system::System for Heartbeat {
     async fn instantiate(
-        &self,
+        self: Box<Self>,
         _server: state::ServerState,
         mut event_tx: EventSender,
         mut event_rx: EventReceiver,
     ) -> Result<()> {
         tokio::spawn(async move {
+            // TODO: THIS IS NOT TERMINATED!!!!!!
             loop {
                 tokio::time::sleep(Duration::from_millis(1000)).await;
                 event_tx.push(Event::Heartbeat).await;
