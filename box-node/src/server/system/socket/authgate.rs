@@ -1,8 +1,9 @@
+use std::fs::read;
+
 use anyhow::{anyhow, Context, Result};
 
 use crate::{
-    conn::line::{self, LineConnReader, LineConnWriter},
-    pkt::{self, meta},
+    auth::AuthHandle, conn::line::{self, LineConnReader, LineConnWriter}, pkt::{self, meta}
 };
 
 pub enum AuthResult {
@@ -11,10 +12,11 @@ pub enum AuthResult {
 }
 
 pub async fn gate(
+    auth: AuthHandle,
     writer: LineConnWriter,
     reader: LineConnReader,
 ) -> Result<(AuthResult, LineConnWriter, LineConnReader)> {
-    match login_loop(writer, reader)
+    match login_loop(auth, writer, reader)
         .await
         // TODO: log connection?
         .context("failure in login loop")?
@@ -26,7 +28,16 @@ pub async fn gate(
     }
 }
 
+
+/* NOTE:
+ * we discard the password entirely
+ * in the customized SWF, we imply a JWT is passed in the username field
+ * ...yea ugly, but a more pretty solution would require a more thourough hack 
+ * of the boot sequence
+ * the original code SUCKS ASS and I hate decompiling and recompiling actionscript!!!
+ */
 async fn login_loop(
+    auth: AuthHandle,
     writer: LineConnWriter,
     reader: LineConnReader,
 ) -> Result<(Option<meta::PlayerId>, LineConnWriter, LineConnReader)> {
@@ -63,19 +74,28 @@ async fn login_loop(
             }
         }
     };
-
-    let user_id = match username.as_str() {
-        "kirill" => 102,
-        "peter" => 103,
-        _ => {
-            writer
-                .write(pkt::xt::as2::server::Packet(meta::server::Packet::Error(
-                    meta::server::Error::NameNotFound,
-                )))
-                .await
-                .unwrap();
-            return Ok((None, writer, reader));
-        }
+    let token = username.as_str();
+    let user= match {auth.read().await.verify_user(token)}{
+        Ok(user) => user,
+        Err(e) => return Err(e).context("failure in token validation"),
     };
-    Ok((Some(user_id), writer, reader))
+    log::info!("woooo {}", user);
+    Ok((Some(102), writer, reader))
+    // let auth.read(path)
+
+
+    // let user_id = match username.as_str() {
+    //     "kirill" => 102,
+    //     "peter" => 103,
+    //     _ => {
+    //         writer
+    //             .write(pkt::xt::as2::server::Packet(meta::server::Packet::Error(
+    //                 meta::server::Error::NameNotFound,
+    //             )))
+    //             .await
+    //             .unwrap();
+    //         return Ok((None, writer, reader));
+    //     }
+    // };
+    // Ok((Some(user_id), writer, reader))
 }

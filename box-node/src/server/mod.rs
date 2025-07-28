@@ -11,8 +11,7 @@ use tokio::{
 };
 
 use crate::{
-    pkt::meta,
-    server::{resp::Request, system::{EventReceiver, EventSender, System}},
+    auth::AuthHandle, pkt::meta, server::{resp::Request, system::{EventReceiver, EventSender, System}}
 };
 use anyhow::{Context, Result};
 
@@ -72,7 +71,7 @@ pub async fn from_systems(systems: Vec<Box<dyn System>>) -> Result<mpsc::Sender<
     Ok(cmd_tx)
 }
 
-pub async fn bind<A>(address: A) -> Result<mpsc::Sender<ServerCmd>>
+pub async fn bind<A>(address: A, auth: AuthHandle) -> Result<mpsc::Sender<ServerCmd>>
 where
     A: ToSocketAddrs,
 {
@@ -82,7 +81,7 @@ where
         .ok_or_else(|| anyhow::anyhow!("No address found"))?;
     let systems: Vec<Box<dyn system::System>> = vec![
         Box::new(system::heartbeat::Heartbeat),
-        Box::new(system::socket::as2::Socket { address }),
+        Box::new(system::socket::as2::Socket { address, auth }),
         Box::new(system::server::Server),
     ];
 

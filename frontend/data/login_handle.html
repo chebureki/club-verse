@@ -1,59 +1,58 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Login Handler</title>
-</head>
-<body>
-    <p>Processing login...</p>
 
-    <script>
-        async function handleLogin() {
-            // Get authorization code from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            
-            if (!code) {
-                console.error('No authorization code found');
-                window.location.href = '/index.html';
-                return;
-            }
-            
-            try {
-                // Exchange code for token
-                const tokenResponse = await fetch('http://localhost:8080/realms/box-verse/protocol/openid-connect/token', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: new URLSearchParams({
-                        grant_type: 'authorization_code',
-                        client_id: 'box-login',
-                        code: code,
-                        redirect_uri: window.location.origin + '/login_handle.html'
-                    })
-                });
-                
-                if (!tokenResponse.ok) {
-                    throw new Error('Token exchange failed');
-                }
-                
-                const tokenData = await tokenResponse.json();
-                
-                // Store access token in localStorage
-                localStorage.setItem('authToken', tokenData.access_token);
-                
-                // Redirect to main game page
-                window.location.href = '/index.html';
-                
-            } catch (error) {
-                console.error('Login error:', error);
-                // Redirect to index anyway, it will handle the missing token
-                window.location.href = '/index.html';
-            }
+<head>
+  <title>Login Handler</title>
+</head>
+
+<body>
+  <p>Processing login...</p>
+
+  <script>
+    async function handleLogin() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+
+      if (!code) {
+        console.error('No authorization code found');
+        window.location.href = '/index.html';
+        return;
+      }
+
+      try {
+        const tokenResponse = await fetch('http://localhost:8080/realms/box-verse/protocol/openid-connect/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            client_id: 'box-login',
+            code: code,
+            redirect_uri: window.location.origin + '/login_handle.html'
+          })
+        });
+
+        if (!tokenResponse.ok) {
+          throw new Error('Token exchange failed');
         }
-        
-        // Run immediately
-        handleLogin();
-    </script>
+
+        const tokenData = await tokenResponse.json();
+
+        localStorage.setItem('authToken', tokenData.access_token);
+
+        // Redirect to main game page
+        window.location.href = '/index.html';
+
+      } catch (error) {
+        console.error('Login error:', error);
+        document.write("failure in obtaining auth token! sorry!");
+      }
+    }
+
+    // Run immediately
+    handleLogin();
+  </script>
 </body>
+
 </html>

@@ -37,7 +37,7 @@
     }
 
     function redirectToKeycloak() {
-      const keycloakUrl = 'http://localhost:8080';
+      const keycloakUrl = 'http://keycloak:8080';
       const realm = 'box-verse';
       const clientId = 'box-login';
       const redirectUri = encodeURIComponent('http://localhost/login_handle.html');
@@ -53,6 +53,12 @@
 
   <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
   <script>
+
+    const authToken = localStorage.getItem('authToken');
+
+    if (!authToken) {
+      alert("no auth token provided ... failure in redirect?");
+    }
     window.RufflePlayer = window.RufflePlayer || {};
     window.RufflePlayer.config = {
       logLevel: "info", // or "trace" for very detailed logs
@@ -78,7 +84,7 @@
       player.load({
         url: "http://media.localhost/boots.swf",
         parameters: {
-          authtoken: "yallah",
+          authtoken: authToken,
         }
       });
 

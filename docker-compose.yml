@@ -1,27 +1,14 @@
 version: '3.8'
 
 services:
-  box-node:
-    container_name: "box-node-blizzard"
-    build: "./box-node"
-    ports:
-      - "1337:1337"
-    entrypoint: ["/usr/local/bin/box-node"]
-    command: []
-
-
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: keycloak
     environment:
-      # Admin credentials
+      KC_HOSTNAME: keycloak
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-      
-      # Database configuration (using built-in H2 for simplicity)
       KC_DB: dev-file
-      
-      # Hostname configuration
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
     ports:
@@ -31,6 +18,13 @@ services:
     volumes:
       # Optional: persist data
       - keycloak_data:/opt/keycloak/data
+    healthcheck:
+      # stolen: https://gist.github.com/sarath-soman/5d9aec06953bbd0990c648605d4dba07
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost:8080\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q 'HTTP/1.1 200' <&3; exec 3<&-"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 2s
 
   caddy:
     image: caddy:latest
@@ -43,6 +37,18 @@ services:
       - ./media:/srv/media
       - caddy_data:/data
       - caddy_config:/config
+  box-node:
+    container_name: "box-node-blizzard"
+    build: "./box-node"
+    depends_on: 
+      keycloak:
+        condition: service_healthy
+    ports:
+      - "1337:1337"
+    entrypoint: ["/usr/local/bin/box-node"]
+    command: []
+
+
 
 volumes:
   keycloak_data:

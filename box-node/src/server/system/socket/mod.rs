@@ -5,11 +5,10 @@ pub mod as2 {
     use std::net::SocketAddr;
 
     use crate::{
-        pkt,
-        server::{
+        auth::AuthHandle, pkt, server::{
             state,
             system::{socket::dist, EventReceiver, EventSender},
-        },
+        }
     };
 
     use anyhow::{Context, Result};
@@ -19,7 +18,8 @@ pub mod as2 {
     use crate::server::{system::System, Event};
 
     pub struct Socket {
-        pub address: SocketAddr,
+        pub(crate) address: SocketAddr,
+        pub(crate) auth: AuthHandle,
     }
 
     // TODO: this should be generic, such it also works for as3
@@ -36,7 +36,7 @@ pub mod as2 {
                 .context("failed to bind for socket")?;
 
             log::info!("server listening on {}", &self.address);
-            let mut dist = dist::Distributed::new(socket).await;
+            let mut dist = dist::Distributed::new(socket, self.auth).await;
 
             tokio::spawn(async move {
                 loop {

@@ -24,8 +24,7 @@ pub struct Server;
 #[derive(Debug)]
 pub enum ServerError {
     // player sends something stupid, TODO: perhaps log? give context?
-    PlayerFault(datamodel::PlayerId, meta::server::Error),
-    ServerFault(anyhow::Error),
+    PlayerFault(datamodel::PlayerId, meta::server::Error), ServerFault(anyhow::Error),
 }
 
 #[inline]

@@ -8,12 +8,10 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    conn::line,
-    pkt::{
+    auth::AuthHandle, conn::line, pkt::{
         meta::{self, PlayerId},
         xt::XTPacket,
-    },
-    server::system::socket::authgate::{self, AuthResult},
+    }, server::system::socket::authgate::{self, AuthResult}
 };
 
 pub enum Event {
@@ -38,7 +36,7 @@ pub struct Distributed {
 
 impl Distributed {
     // todo: split into sub functions
-    pub async fn new(socket: TcpListener) -> Self {
+    pub async fn new(socket: TcpListener, auth: AuthHandle) -> Self {
         let connections: Arc<RwLock<HashMap<meta::PlayerId, line::LineConnWriter>>> =
             Arc::new(RwLock::new(HashMap::with_capacity(64)));
 
@@ -58,7 +56,7 @@ impl Distributed {
                     };
                     log::debug!("accepted connection from {addr}");
 
-                    let (player_id, writer, mut reader) = match authgate::gate(writer, reader).await
+                    let (player_id, writer, mut reader) = match authgate::gate(auth.clone(), writer, reader).await
                     {
                         Ok((AuthResult::Unauthenticated, _, _)) => {
                             log::warn!("Bad auth result for {addr}, discarding");
