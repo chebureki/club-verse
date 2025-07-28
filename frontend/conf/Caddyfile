@@ -1,0 +1,24 @@
+localhost:80 {
+    root * /srv/web
+    file_server
+    
+    # TODO: FIX AFTER DEVING!!!!
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+    }
+}
+
+media.localhost:80 {
+    root * /srv/media
+    file_server
+    
+    # TODO: FIX AFTER DEVING!!!!
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+    }
+
+}

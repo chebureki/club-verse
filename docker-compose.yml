@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  box-node:
+    container_name: "box-node-blizzard"
+    build: "./box-node"
+    ports:
+      - "1337:1337"
+    entrypoint: ["/usr/local/bin/box-node"]
+    command: []
+
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    environment:
+      # Admin credentials
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      
+      # Database configuration (using built-in H2 for simplicity)
+      KC_DB: dev-file
+      
+      # Hostname configuration
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+    ports:
+      - "8080:8080"
+    command:
+      - start-dev
+    volumes:
+      # Optional: persist data
+      - keycloak_data:/opt/keycloak/data
+
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend/conf/Caddyfile:/etc/caddy/Caddyfile
+      - ./frontend/data:/srv/web
+      - ./media:/srv/media
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  keycloak_data:
+  caddy_data:
+  caddy_config:
