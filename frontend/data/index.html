@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <meta http-equiv="content-language" content="en" />
+  <title>BOX HAX</title>
+  <script type="text/javascript" defer="false" async="false">
+    function checkTokenAndRedirect() {
+      const token = localStorage.getItem('authToken');
+
+      if (!token) {
+        redirectToKeycloak();
+        return;
+      }
+
+      // Decode JWT token to check expiration
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const currentTime = Math.floor(Date.now() / 1000);
+
+        if (payload.exp < currentTime) {
+          // Token expired
+          localStorage.removeItem('authToken');
+          redirectToKeycloak();
+          return;
+        }
+
+        // Token is valid, continue with game
+        console.log('Token is valid');
+
+      } catch (error) {
+        // Invalid token format
+        localStorage.removeItem('authToken');
+        redirectToKeycloak();
+      }
+    }
+
+    function redirectToKeycloak() {
+      const keycloakUrl = 'http://keycloak:8080';
+      const realm = 'box-verse';
+      const clientId = 'box-login';
+      const redirectUri = encodeURIComponent('http://localhost/login_handle.html');
+
+      const loginUrl = `${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid`;
+
+      window.location.href = loginUrl;
+    }
+
+    // Check token on page load
+    checkTokenAndRedirect();
+  </script>
+    sdfg
+
+  <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+  <script>
+
+    const authToken = localStorage.getItem('authToken');
+
+    if (!authToken) {
+      alert("no auth token provided ... failure in redirect?");
+    }
+    window.RufflePlayer = window.RufflePlayer || {};
+    window.RufflePlayer.config = {
+      logLevel: "info", // or "trace" for very detailed logs
+      menu: false,
+      allowScriptAccess: "always",
+
+      socketProxy: [
+        {
+          host: "127.0.0.1", // Flash socket server (what the SWF tries to connect to)
+          port: 9875,           // Flash socket port
+          proxyUrl: "ws://localhost:19875" // Your WebSocket proxy (what Ruffle connects to)
+        }
+      ]
+    };
+
+    window.addEventListener("DOMContentLoaded", function () {
+      const ruffle = window.RufflePlayer.newest();
+      const player = ruffle.createPlayer();
+      player.style.width = "100%";
+      player.style.height = "98%";
+      const container = document.getElementById("game-container");
+      container.appendChild(player);
+      player.load({
+        url: "http://media.localhost/boots.swf",
+        parameters: {
+          authtoken: authToken,
+        }
+      });
+
+    });
+  </script>
+  <style>
+    #game-container {
+      width: 100%;
+      height: 100vh;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- container for ruffle player -->
+  <div id="game-container">
+    <noscript>
+      <a href="https://get.adobe.com/flashplayer/">
+        <img id="noflash" src="/images/need-flash-player.gif" alt="get adobe flash player"
+          title="get adobe flash player" />
+      </a>
+    </noscript>
+  </div>
+</body>
+
+</html>
